@@ -1,0 +1,14 @@
+{"time":"2025-02-11T08:07:50.355283583-05:00","level":"INFO","msg":"stream: starting","core version":"0.19.5","symlink path":"/home/abamini/PhenoGnet/Code/wandb/offline-run-20250211_080749-pgqi8047/logs/debug-core.log"}
+{"time":"2025-02-11T08:07:50.602626699-05:00","level":"INFO","msg":"created new stream","id":"pgqi8047"}
+{"time":"2025-02-11T08:07:50.602657314-05:00","level":"INFO","msg":"stream: started","id":"pgqi8047"}
+{"time":"2025-02-11T08:07:50.602659127-05:00","level":"INFO","msg":"handler: started","stream_id":"pgqi8047"}
+{"time":"2025-02-11T08:07:50.602666956-05:00","level":"INFO","msg":"writer: Do: started","stream_id":"pgqi8047"}
+{"time":"2025-02-11T08:07:50.602876569-05:00","level":"INFO","msg":"sender: started","stream_id":"pgqi8047"}
+{"time":"2025-02-11T08:07:50.606630771-05:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-11T08:09:22.415529256-05:00","level":"INFO","msg":"stream: closing","id":"pgqi8047"}
+{"time":"2025-02-11T08:09:22.415624364-05:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-11T08:09:22.416188954-05:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-02-11T08:09:22.416501449-05:00","level":"INFO","msg":"handler: closed","stream_id":"pgqi8047"}
+{"time":"2025-02-11T08:09:22.416509436-05:00","level":"INFO","msg":"writer: Close: closed","stream_id":"pgqi8047"}
+{"time":"2025-02-11T08:09:22.416557019-05:00","level":"INFO","msg":"sender: closed","stream_id":"pgqi8047"}
+{"time":"2025-02-11T08:09:22.421993885-05:00","level":"INFO","msg":"stream: closed","id":"pgqi8047"}

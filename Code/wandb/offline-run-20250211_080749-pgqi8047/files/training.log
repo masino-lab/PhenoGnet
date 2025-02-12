@@ -1,0 +1,56 @@
+INFO:root:Training device: cpu.
+INFO:root:Start JCLModel training for 50 epochs.
+DEBUG:root:Epoch: 0	Loss: 9.7091064453125
+DEBUG:root:Epoch: 1	Loss: 9.595383644104004
+DEBUG:root:Epoch: 2	Loss: 9.663142204284668
+DEBUG:root:Epoch: 3	Loss: 9.187698364257812
+DEBUG:root:Epoch: 4	Loss: 8.874435424804688
+DEBUG:root:Epoch: 5	Loss: 9.620482444763184
+DEBUG:root:Epoch: 6	Loss: 9.09805965423584
+DEBUG:root:Epoch: 7	Loss: 9.651525497436523
+DEBUG:root:Epoch: 8	Loss: 9.306763648986816
+DEBUG:root:Epoch: 9	Loss: 9.468927383422852
+DEBUG:root:Epoch: 10	Loss: 8.927111625671387
+DEBUG:root:Epoch: 11	Loss: 8.76640510559082
+DEBUG:root:Epoch: 12	Loss: 8.797379493713379
+DEBUG:root:Epoch: 13	Loss: 9.204472541809082
+DEBUG:root:Epoch: 14	Loss: 8.932936668395996
+DEBUG:root:Epoch: 15	Loss: 9.223265647888184
+DEBUG:root:Epoch: 16	Loss: 8.79980754852295
+DEBUG:root:Epoch: 17	Loss: 8.95765495300293
+DEBUG:root:Epoch: 18	Loss: 9.151782989501953
+DEBUG:root:Epoch: 19	Loss: 8.929084777832031
+DEBUG:root:Epoch: 20	Loss: 8.776388168334961
+DEBUG:root:Epoch: 21	Loss: 8.731231689453125
+DEBUG:root:Epoch: 22	Loss: 8.735112190246582
+DEBUG:root:Epoch: 23	Loss: 8.738516807556152
+DEBUG:root:Epoch: 24	Loss: 8.72749137878418
+DEBUG:root:Epoch: 25	Loss: 8.723957061767578
+DEBUG:root:Epoch: 26	Loss: 8.700873374938965
+DEBUG:root:Epoch: 27	Loss: 8.688376426696777
+DEBUG:root:Epoch: 28	Loss: 8.687113761901855
+DEBUG:root:Epoch: 29	Loss: 8.693394660949707
+DEBUG:root:Epoch: 30	Loss: 8.720011711120605
+DEBUG:root:Epoch: 31	Loss: 8.742802619934082
+DEBUG:root:Epoch: 32	Loss: 8.801430702209473
+DEBUG:root:Epoch: 33	Loss: 9.001124382019043
+DEBUG:root:Epoch: 34	Loss: 8.716739654541016
+DEBUG:root:Epoch: 35	Loss: 8.695988655090332
+DEBUG:root:Epoch: 36	Loss: 8.68423080444336
+DEBUG:root:Epoch: 37	Loss: 8.686622619628906
+DEBUG:root:Epoch: 38	Loss: 8.682411193847656
+DEBUG:root:Epoch: 39	Loss: 8.692607879638672
+DEBUG:root:Epoch: 40	Loss: 8.681554794311523
+DEBUG:root:Epoch: 41	Loss: 8.683974266052246
+DEBUG:root:Epoch: 42	Loss: 8.672998428344727
+DEBUG:root:Epoch: 43	Loss: 8.670839309692383
+DEBUG:root:Epoch: 44	Loss: 8.674561500549316
+DEBUG:root:Epoch: 45	Loss: 8.703824996948242
+DEBUG:root:Epoch: 46	Loss: 8.69277286529541
+DEBUG:root:Epoch: 47	Loss: 8.714015007019043
+DEBUG:root:Epoch: 48	Loss: 8.699755668640137
+DEBUG:root:Epoch: 49	Loss: 8.689935684204102
+INFO:root:Training has finished.
+INFO:root:Training takes 1.5116782148679098 mins
+INFO:root:Model checkpoint and metadata have been saved at /home/abamini/PhenoGnet/Code/wandb/offline-run-20250211_080749-pgqi8047/files.
+INFO:root:Gene embedding has been saved at /home/abamini/PhenoGnet/Code/wandb/offline-run-20250211_080749-pgqi8047/files.
