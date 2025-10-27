@@ -1,7 +1,12 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules.linear import Linear
-from torch_geometric.nn import GCNConv, RGCNConv
+from torch_geometric.nn import GCNConv, RGCNConv, GATConv
+## new imports
+from torch_geometric.nn import MessagePassing
+from torch_geometric.nn.inits import glorot, zeros
+
 
 #: A neural network layer for nonlinear transformation of embeddings
 class Projection(nn.Module):
@@ -38,6 +43,7 @@ class GCN(nn.Module):
     def forward(self, data):
         try:
             x = self.conv1(data.x, data.edge_index, data.edge_weight)
+            #print(data.x)
             x = F.leaky_relu(x)
             x = self.conv2(x, data.edge_index, data.edge_weight)
         except:
@@ -59,8 +65,27 @@ class RGCN(nn.Module):
         x = F.leaky_relu(x)
         x = self.rconv2(x, data.edge_index, data.edge_type)        
         return x
+    
+#Graph attention network
+class GAT(nn.Module):
 
-#The main model that combines gene and knowledge graph embeddings
+    def __init__(self, nfeat, nhid, heads=1):
+        super(GAT, self).__init__()
+        self.conv1 = GATConv(nfeat, nhid, heads=heads, concat=True, bias=True)
+        self.conv2 = GATConv(nhid * heads, nhid, heads=1, concat=True, bias=True)
+
+    def forward(self, data):
+        try:
+            x = self.conv1(data.x, data.edge_index, data.edge_weight)
+            x = F.leaky_relu(x)
+            x = self.conv2(x, data.edge_index, data.edge_weight)
+        except:
+            x = self.conv1(data.x, data.edge_index)
+            x = F.leaky_relu(x)
+            x = self.conv2(x, data.edge_index)
+        return x
+
+#The main model that combines gene and HPO graph embeddings
 class PhenoGnet(nn.Module):
     
     def __init__(self, 
