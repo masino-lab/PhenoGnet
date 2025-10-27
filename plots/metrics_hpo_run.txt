@@ -1,0 +1,8 @@
+[Validation Metrics @ optimal threshold = 0.83]
+validation_auroc       : 0.7383
+validation_auprc       : 0.7668
+F1 Score       : 0.7670
+Sensitivity    : 0.9393
+Specificity    : 0.3353
+PPV (Precision): 0.6481
+NPV            : 0.8092
