@@ -30,7 +30,7 @@ Installation
 
 1.  Clone the repository:
     ```
-    git clone 
+    git clone git@github.com:masino-lab/PhenoGnet.git
     cd PhenoGnet
     ```
 
@@ -55,7 +55,7 @@ primaryClass={q-bio.GN}
 
 Acknowledgments
 
-[cite\_start]This work was supported by the NIH funded Center of Biomedical Research Excellence in Human Genetics at Clemson University[cite: 260].
+This work was supported by the NIH funded Center of Biomedical Research Excellence in Human Genetics at Clemson University.
 
 License
 
