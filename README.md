@@ -29,12 +29,15 @@ PhenoGnet consists of two key components: an Intra-view Model to encode the gene
 Installation
 
 1.  Clone the repository:
+  ```
     git clone [https://github.com/your-username/PhenoGnet.git](https://www.google.com/search?q=https://github.com/your-username/PhenoGnet.git)
     cd PhenoGnet
+```
 
 2.  Install the required dependencies (e.g., using pip or conda):
+    ```
     pip install -r requirements.txt
-
+    ```
 Citation
 
 If you use this code or our work, please cite the paper:
