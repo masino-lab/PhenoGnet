@@ -1,8 +1,4 @@
-Here is the README in .txt format.
-
------
-
-PhenoGnet
+## PhenoGnet
 
 arXiv: 2509.14037 ([https://arxiv.org/abs/2509.14037](https://arxiv.org/abs/2509.14037))
 License: MIT ([https://opensource.org/licenses/MIT](https://opensource.org/licenses/MIT))
@@ -30,17 +26,6 @@ PhenoGnet consists of two key components: an Intra-view Model to encode the gene
       * Diseases are represented by the mean embedding (average-pooling) of their associated genes and/or phenotypes.
       * The similarity between any two diseases is calculated using the cosine similarity of their final embedding vectors.
 
-Data
-
-The model is constructed and validated using several public datasets:
-
-  * [cite\_start]Gene Interaction Network: HumanNet (v3)[cite: 52].
-  * [cite\_start]Phenotype Ontology: The Human Phenotype Ontology (HPO)[cite: 50].
-  * Association Data:
-      * [cite\_start]Disease-gene associations from DisGeNET[cite: 54].
-      * [cite\_start]Gene-phenotype and disease-phenotype associations from the HPO database[cite: 54].
-  * [cite\_start]Benchmark Dataset: A curated benchmark of 1,100 similar and 866 dissimilar rare disease pairs used for training and validation[cite: 58].
-
 Installation
 
 1.  Clone the repository:
@@ -52,8 +37,9 @@ Installation
 
 Citation
 
-[cite\_start]If you use this code or our work, please cite the paper[cite: 1, 4]:
+If you use this code or our work, please cite the paper:
 
+```
 @misc{baminiwatte2025phenognet,
 title={PhenoGnet: A Graph-Based Contrastive Learning Framework for Disease Similarity Prediction},
 author={Ranga Baminiwatte and Kazi Jewel Rana and Aaron J. Masino},
@@ -62,6 +48,7 @@ eprint={2509.14037},
 archivePrefix={arXiv},
 primaryClass={q-bio.GN}
 }
+```
 
 Acknowledgments
 
