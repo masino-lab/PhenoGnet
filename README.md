@@ -11,7 +11,7 @@ PhenoGnet integrates gene functional interaction networks and the Human Phenotyp
 ## Framework Overview
 
 <p align="center">
-  <img src="assets/PhenoGnet_overview.png" alt="PhenoGnet Framework Workflow" width="800">
+  <img src="assets/PhenoGnet_overview.png" alt="PhenoGnet Framework Workflow" width="550">
 </p>
 
 *Figure: Overall workflow of the PhenoGnet framework integrating gene and phenotype graphs through contrastive learning.*
