@@ -6,7 +6,17 @@ License: MIT ([https://opensource.org/licenses/MIT](https://opensource.org/licen
 This repository contains the official implementation for PhenoGnet, a novel graph-based contrastive learning framework designed to predict disease similarity.
 
 PhenoGnet integrates gene functional interaction networks and the Human Phenotype Ontology (HPO) to learn powerful embeddings for genes and phenotypes. By aligning these two views, the model can compute disease similarity scores that capture complex biological relationships, outperforming existing state-of-the-art methods.
+---
 
+## Framework Overview
+
+<p align="center">
+  <img src="assets/phenognet_workflow.png" alt="PhenoGnet Framework Workflow" width="800">
+</p>
+
+*Figure: Overall workflow of the PhenoGnet framework integrating gene and phenotype graphs through contrastive learning.*
+
+---
 Model Architecture
 
 PhenoGnet consists of two key components: an Intra-view Model to encode the gene and phenotype graphs separately, and a Cross-view Model to align them in a shared latent space.
