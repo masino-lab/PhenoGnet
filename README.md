@@ -180,6 +180,58 @@ CUDA is selected automatically when the active environment has a CUDA-enabled
 PyTorch build and `torch.cuda.is_available()` returns `True`. Add `--disable-cuda`
 only when you intentionally want CPU training.
 
+## Command-Line Arguments
+
+`python Code/run.py --help` prints the short reference, including defaults. The
+notes below explain when each option is useful.
+
+- `--data`: Directory containing the processed graph and mapping files used for
+  training, including `hnet.npz`, `hpo2hpo_rec.npz`, `g2hpo_all_ancestors.npz`,
+  `dis2hpo.npz`, `dis2g.npz`, and the triples loaded by `load_triples`. Change
+  this when using a different processed dataset or data location.
+- `--h_dim`: Hidden embedding size for the HPO and gene encoders. Increase it for
+  more model capacity; decrease it for quicker or lower-memory experiments.
+- `--z_dim`: Projection embedding size used for the contrastive space after the
+  encoders. Tune this when comparing contrastive representation capacity.
+- `--tau`: Temperature for the contrastive softmax. Lower values emphasize the
+  strongest similarities; higher values smooth the similarity distribution.
+- `--lr`: RMSprop learning rate. Lower it if the loss is unstable; raise it
+  cautiously for faster learning.
+- `--epochs`: Number of training epochs. Use small values for smoke tests and
+  larger values for full runs.
+- `--disable-cuda`: Forces CPU training even when CUDA is available. Use this for
+  debugging device issues or reproducing CPU-only behavior.
+- `--log-every-n-steps`: Epoch interval for computing and logging training metrics
+  to W&B. Larger intervals reduce logging overhead.
+- `--use_hpo_embeddings`: Use `1` to initialize HPO nodes from the sentence
+  embedding file, or `0` to fall back to one-hot HPO features.
+- `--concat_hpo_embeddings`: Use `1` to concatenate original HPO sentence
+  embeddings onto learned HPO embeddings during full-dataset validation.
+- `--hpo_embeddings_path`: Path to the `.npy` HPO sentence embedding file. Change
+  this when using a different embedding model or local data layout.
+- `--wandb_label`: Name for the offline W&B run and the label appended to saved
+  validation artifacts. Use descriptive labels when comparing experiments.
+- `--encoder_mode`: Selects the disease representation used for evaluation:
+  `hpo` pools HPO embeddings, `hnet` pools gene-network embeddings, and
+  `combined` evaluates both views together.
+- `--full_dataset`: Disease-pair validation file used after training. Point this
+  to the held-out test set for final evaluation.
+- `--beta`: Weight for the bidirectional contrastive loss. `beta` weights the HPO
+  direction and `1 - beta` weights the gene direction.
+- `--gamma`: Combined-mode validation weight for balancing HPO and gene disease
+  embeddings. This only matters with `--encoder_mode combined`.
+- `--hyperparameter_tuning`: Runs the Optuna tuning workflow instead of regular
+  training, then exits after saving the best parameters.
+- `--cv_folds`: Number of cross-validation folds used during hyperparameter
+  tuning. More folds give a more stable estimate but take longer.
+- `--tuning_dataset`: Dataset file used to build cross-validation folds during
+  hyperparameter tuning. This should normally be a training split, not the final
+  held-out test set.
+- `--n_trials`: Number of Optuna trials. Increase for a broader search; decrease
+  for quick tuning checks.
+- `--output_dir`: Directory where hyperparameter tuning artifacts are saved,
+  including best parameters, plots, trial summaries, and study metadata.
+
 ## Citation
 
 If you use this code or our work, please cite the paper:
