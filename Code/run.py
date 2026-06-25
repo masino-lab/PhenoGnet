@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 import os
+from pathlib import Path
 from torch_geometric.data import Data
 from utils import *
 from model import GCN, RGCN, Projection, PhenoGnet, GAT
@@ -10,13 +11,21 @@ from trainer import Trainer
 from log_results import log_run_results
 from hyperparameter_tuning import run_hyperparameter_tuning
 
-embeddings_path = "/data2/masino_lab/abamini/population-phenotyping/data/external/hpo/hpo_class_node_desc_embeddings_model_mpnet.npy"
-validation_dataset_path = "/home/abamini/PhenoGnet/data/processed/full_dataset_test.txt"
-train_dataset_path = "/home/abamini/PhenoGnet/data/processed/full_dataset_train.txt"
-plot_save_path = "/home/abamini/PhenoGnet/plots"
+CODE_DIR = Path(__file__).resolve().parent
+REPO_ROOT = CODE_DIR.parent
 
-parser = argparse.ArgumentParser(description="PyTorch JCLModel")
-parser.add_argument("--data", default="../data/processed", help="path to dataset")
+processed_data_path = str(REPO_ROOT / "data" / "processed")
+embeddings_path = str(REPO_ROOT / "data" / "hpo_embeddings" / "hpo_class_node_desc_embeddings_model_mpnet.npy")
+validation_dataset_path = str(REPO_ROOT / "data" / "processed" / "full_dataset_test.txt")
+train_dataset_path = str(REPO_ROOT / "data" / "processed" / "full_dataset_train.txt")
+plot_save_path = str(REPO_ROOT / "plots") # Path where different plots with evaluation metrics will go (ROC curves, PR curves, similarity histograms, csv files with plot data)
+
+# Detailed argument guidance lives in README.md; argparse provides quick CLI help.
+parser = argparse.ArgumentParser(
+    description="Train and evaluate the PhenoGnet model.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+)
+parser.add_argument("--data", default=processed_data_path, help="path to dataset")
 parser.add_argument("--h_dim", default=32, type=int, help="dimension of layer h")
 parser.add_argument("--z_dim", default=32, type=int, help="dimension of layer z")
 parser.add_argument("--tau", default=0.3, type=float, help="softmax temperature")
@@ -31,13 +40,13 @@ parser.add_argument("--wandb_label", default="run", help="Name the wandb run lab
 parser.add_argument("--encoder_mode", default="hnet", choices=["hpo", "hnet", "combined"], 
                     help="Encoder mode for disease AUC calculation (hpo, hnet, or combined)")
 parser.add_argument("--full_dataset", default=validation_dataset_path, help="Path to full dataset for inference validation")
-parser.add_argument("--beta", default=0, type=float, help="Beta coefficient for conmtasive loss")
+parser.add_argument("--beta", default=0, type=float, help="Beta coefficient for contrastive loss")
 parser.add_argument("--gamma", default=0, type=float, help="gamma coefficient for validation, only valid for combined mode")
-parser.add_argument("--hyperparameter_tuning", default=False, help="Perform hyperparameter tuning")
+parser.add_argument("--hyperparameter_tuning", default=False, action="store_true", help="Perform hyperparameter tuning")
 parser.add_argument("--cv_folds", default=5, type=int, help="Number of cross-validation folds for hyperparameter tuning")
 parser.add_argument("--tuning_dataset", default=train_dataset_path, help="Path to dataset for hyperparameter tuning")
 parser.add_argument("--n_trials", default=30, type=int, help="Number of trials for Bayesian optimization")
-parser.add_argument("--output_dir", default="./hyperparameter_tuning", help="Directory to save hyperparameter tuning results")
+parser.add_argument("--output_dir", default=str(REPO_ROOT / "hyperparameter_tuning"), help="Directory to save hyperparameter tuning results")
 args = parser.parse_args()
 
 device = torch.device("cuda" if not args.disable_cuda and torch.cuda.is_available() else "cpu")
