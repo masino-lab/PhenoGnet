@@ -130,6 +130,56 @@ If you switch profiles later, recreating `.venv` is usually the cleanest option.
     virtual environment (`.venv\Scripts\python.exe` on Windows or `.venv/bin/python`
     on Linux/macOS).
 
+## Running
+
+After activating the virtual environment and installing dependencies, run the main
+training script from the repository root:
+
+```bash
+python Code/run.py
+```
+
+Running from the repository root is recommended because it keeps logs and other
+relative-output files in one predictable place. The script now resolves its default
+input and plot paths relative to the repository root, so this also works:
+
+```bash
+cd Code
+python run.py
+```
+
+Before starting a long run, you can confirm the command-line options without
+loading data or training:
+
+```bash
+python Code/run.py --help
+```
+
+A few common examples:
+
+```bash
+# Train with the default HNET encoder settings.
+python Code/run.py --wandb_label baseline_hnet
+
+# Force CPU even if CUDA is available.
+python Code/run.py --disable-cuda
+
+# Use the HPO encoder and a shorter test run.
+python Code/run.py --encoder_mode hpo --epochs 5 --wandb_label hpo_smoke_test
+
+# Run hyperparameter tuning instead of regular training.
+python Code/run.py --hyperparameter_tuning --n_trials 30
+```
+
+By default, the script expects processed inputs under `data/processed/`, HPO text
+embeddings under `data/hpo_embeddings/`, and writes evaluation plots to `plots/`.
+Use `--data`, `--hpo_embeddings_path`, `--full_dataset`, and `--output_dir` to point
+at alternate files or directories.
+
+CUDA is selected automatically when the active environment has a CUDA-enabled
+PyTorch build and `torch.cuda.is_available()` returns `True`. Add `--disable-cuda`
+only when you intentionally want CPU training.
+
 ## Citation
 
 If you use this code or our work, please cite the paper:
