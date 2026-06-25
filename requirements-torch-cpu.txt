@@ -1,0 +1,6 @@
+# CPU-only PyTorch wheels for Windows and Linux.
+--index-url https://download.pytorch.org/whl/cpu
+
+torch==2.2.2
+torchvision==0.17.2
+torchaudio==2.2.2

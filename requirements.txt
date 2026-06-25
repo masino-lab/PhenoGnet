@@ -1,17 +1,16 @@
-# Core
+# Core Python dependencies.
+#
+# Install this file first, then install one Torch/PyG profile from:
+#   requirements-torch-cpu.txt + requirements-pyg-cpu.txt
+#   requirements-torch-cu121.txt + requirements-pyg-cu121.txt
+#
+# See README.md for platform-specific installation commands.
 numpy==1.26.4
 pandas==2.2.3
 scipy==1.11.4
 scikit-learn==1.4.2
 matplotlib==3.8.4
 seaborn==0.13.2
-torch==2.2.2
-torchvision==0.17.2
-torchaudio==2.2.2
-triton==2.2.0
-torch-geometric==2.6.1
-torch-scatter==2.1.2
-torch-sparse==0.6.18
 transformers==4.41.2
 datasets==2.19.1
 optuna==3.6.1
@@ -25,4 +24,3 @@ PyYAML==6.0.1
 click==8.1.8
 openTSNE==1.0.1
 networkx==3.3
-
