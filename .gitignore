@@ -8,3 +8,6 @@ wandb/
 
 # Generated evaluation plots and metric exports
 plots/
+
+# Generated run summary workbook
+run_log.xlsx
