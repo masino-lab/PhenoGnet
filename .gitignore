@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Weights & Biases local/offline run artifacts
+wandb/
+
+# Generated evaluation plots and metric exports
+plots/
