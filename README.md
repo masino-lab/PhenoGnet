@@ -42,6 +42,9 @@ The project has been tested with Python 3.10. A virtual environment is recommend
 so that the pinned scientific and PyTorch dependencies do not conflict with other
 Python projects on your machine.
 
+NOTE: This project is not currently compatible with Python 3.13; if you encounter any issues,
+      make sure you have the right python installation.
+
 The requirements are split into a base file plus one PyTorch/PyG profile:
 
 - `requirements.txt`: shared Python dependencies.
