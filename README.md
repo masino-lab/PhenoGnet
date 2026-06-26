@@ -54,7 +54,7 @@ If you switch profiles later, recreating `.venv` is usually the cleanest option.
 1. Clone the repository:
 
     ```bash
-    git clone git@github.com:masino-lab/PhenoGnet.git
+    git clone https://github.com/masino-lab/PhenoGnet.git
     cd PhenoGnet
     ```
 
