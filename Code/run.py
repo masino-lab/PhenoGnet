@@ -47,6 +47,13 @@ parser.add_argument("--cv_folds", default=5, type=int, help="Number of cross-val
 parser.add_argument("--tuning_dataset", default=train_dataset_path, help="Path to dataset for hyperparameter tuning")
 parser.add_argument("--n_trials", default=30, type=int, help="Number of trials for Bayesian optimization")
 parser.add_argument("--output_dir", default=str(REPO_ROOT / "hyperparameter_tuning"), help="Directory to save hyperparameter tuning results")
+parser.add_argument("--calculate_hits_at_k", default="no", choices=["yes", "no"], help="calculate the hits@k metric")
+parser.add_argument("--holdout_target", default="gene", choices=["gene", "hpo"], 
+                    help="The entity type to hold out for prediction (the 'missing' link)")
+parser.add_argument("--disease_rep_mode", default="hpo", choices=["hpo", "gene", "combined"], 
+                    help="How to represent the disease embedding during Hits@K calculation")
+parser.add_argument("--save_hold_out_gene", type=str, default="/home/abamini/PhenoGnet/Code/held_out_genes_new.txt", 
+                    help="Path to save the disease and gene indices of held-out genes")
 args = parser.parse_args()
 
 device = torch.device("cuda" if not args.disable_cuda and torch.cuda.is_available() else "cpu")
@@ -130,6 +137,44 @@ dis2hpo = mx_to_torch_sparse_tesnsor(dis2hpo)
 dis2g = load_sparse(args.data+"/dis2g.npz") # disease to gene needed for HNET encoder
 dis2g = mx_to_torch_sparse_tesnsor(dis2g)
 
+#################################
+held_out_indices = None
+if args.calculate_hits_at_k == "yes":
+    print(f"Performing leave-one-out holdout for target: {args.holdout_target}...")
+    
+    if args.holdout_target == "gene":
+        # Target is Gene: Mask one gene in dis2g
+        matrix = dis2g.to_dense().clone()
+        indices = []
+        for i in range(matrix.shape[0]):
+            pos = torch.where(matrix[i] > 0)[0]
+            if len(pos) > 0:
+                idx = pos[torch.randint(0, len(pos), (1,))].item()
+                matrix[i, idx] = 0
+                indices.append(idx)
+            else:
+                indices.append(-1) #when a disease has no gene association, we append -1 to maintain the index alignment
+        dis2g = matrix.to_sparse()
+        held_out_indices = torch.tensor(indices)
+    
+    elif args.holdout_target == "hpo":
+        # Target is HPO: Mask one HPO in dis2hpo
+        matrix = dis2hpo.to_dense().clone()
+        indices = []
+        for i in range(matrix.shape[0]):
+            pos = torch.where(matrix[i] > 0)[0]
+            if len(pos) > 0:
+                idx = pos[torch.randint(0, len(pos), (1,))].item()
+                matrix[i, idx] = 0
+                indices.append(idx)
+            else:
+                indices.append(-1)
+        dis2hpo = matrix.to_sparse()
+        held_out_indices = torch.tensor(indices)
+#############################
+
+
+
 if args.hyperparameter_tuning:
     print("Starting hyperparameter tuning...")
     best_params = run_hyperparameter_tuning(
@@ -182,6 +227,14 @@ print("---------------------------------------")
 
 # Train the model
 trainer.train(args.epochs, encoder_mode=args.encoder_mode)
+
+if args.calculate_hits_at_k == "yes":
+    trainer.calculate_hits_metrics(
+        held_out_indices=held_out_indices, 
+        target_type=args.holdout_target,
+        rep_mode=args.disease_rep_mode,
+        save_path=args.save_hold_out_gene  # Pass the new argument
+    )
 
 # After training, validate with the full dataset if provided
 if args.full_dataset:

@@ -321,3 +321,65 @@ class Trainer(object):
 
             logging.info(f"Validation AUROC: {auroc:.4f}, AUPRC: {auprc:.4f}, F1: {f1:.4f}")
             return auroc, auprc
+        
+    # In trainer.py, update the calculate_hits_metrics method:
+
+    def calculate_hits_metrics(self, held_out_indices, target_type, rep_mode, save_path=None):
+        """
+        Calculates Hits@K metrics for all diseases and optionally saves held-out pairs.
+        """
+        self.model.eval()
+        with torch.no_grad():
+            # Get raw embeddings from encoders
+            g_h, kg_h = self.model(self.g_data, self.kg_data) # g_h: HPO, kg_h: Gene
+            # --- Step 1: Represent the Disease ---
+            if rep_mode == "hpo":
+                # Disease as average of its HPO terms
+                disease_rep = pooling(g_h, self.dis2hpo.to_dense().to(self.device))
+            elif rep_mode == "gene":
+                # Disease as average of its Genes
+                disease_rep = pooling(kg_h, self.dis2g.to_dense().to(self.device))
+            elif rep_mode == "combined":
+                # Disease as average of both HPO and Gene embeddings
+                d_h_hpo = pooling(g_h, self.dis2hpo.to_dense().to(self.device))
+                d_h_gene = pooling(kg_h, self.dis2g.to_dense().to(self.device))
+                disease_rep = (d_h_hpo + d_h_gene) / 2.0
+
+            # Calculate similarity between all diseases and genes
+            sim_matrix = torch.mm(disease_rep, kg_h.t())
+            
+            hits = {1: 0, 5: 0, 10: 0, 100: 0}
+            num_diseases = disease_rep.size(0)
+            
+            # Prepare to save indices if save_path is provided
+            save_file = open(save_path, "w") if save_path else None
+            if save_file:
+                save_file.write("Disease_Index\tGene_Index\n")
+
+            print(f"\n--- Hits@K Metrics (All {num_diseases} Diseases) ---")
+            
+            # Iterate through ALL diseases instead of a random subset
+            for i in range(num_diseases):
+                target_idx = held_out_indices[i].item()
+                scores = sim_matrix[i]
+                
+                # Save indices to file
+                if save_file:
+                    save_file.write(f"{i}\t{target_idx}\n")
+                
+                # # Calculate the exact rank
+                # rank = (torch.where(torch.argsort(scores, descending=True) == target_idx)[0].item()) + 1
+                
+                # # Update the hits counter
+                # for k in [1, 5, 10, 100]:
+                #     if rank <= k:
+                #         hits[k] += 1
+            
+            if save_file:
+                save_file.close()
+                print(f"Held-out indices saved to {save_path}")
+
+            # Final Results Calculation
+            for k in [1, 5, 10, 100]:
+                score = hits[k] / num_diseases
+                print(f"Hits@{k}: {score:.4f}")
