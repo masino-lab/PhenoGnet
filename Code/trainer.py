@@ -51,6 +51,7 @@ class Trainer(object):
         )
         
     def nce_loss(self, gz, kgz, labels):
+        eps = 1e-8 # To eliminate risk of div/0 or log(0) in loss calculation
         gz = F.normalize(gz, dim=1)
         kgz = F.normalize(kgz, dim=1)
         similarity_matrix = kgz @ gz.T # I changed here
@@ -66,8 +67,8 @@ class Trainer(object):
         beta = self.beta  # this is a hyperparameter
         
         # Log calculations with proper epsilon handling
-        hpo_loss = -torch.log(hpo_pos_sum / hpo_sim_matrix_sum + 1e-8).mean()
-        gene_loss = -torch.log(gene_pos_sum / gene_sim_matrix_sum + 1e-8).mean()
+        hpo_loss = -torch.log(hpo_pos_sum + eps / hpo_sim_matrix_sum + eps).mean()
+        gene_loss = -torch.log(gene_pos_sum + eps / gene_sim_matrix_sum + eps).mean()
         
         # Correct way to combine the losses
         loss = beta * hpo_loss + (1 - beta) * gene_loss
