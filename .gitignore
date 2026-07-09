@@ -11,3 +11,6 @@ plots/
 
 # Generated run summary workbook
 run_log.xlsx
+
+# Hyperparameter tuning results folder
+hyperparameter_tuning/
