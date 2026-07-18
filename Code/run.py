@@ -28,35 +28,19 @@ parser = argparse.ArgumentParser(
 parser.add_argument("--data", default=processed_data_path, help="path to dataset")
 parser.add_argument("--h_dim", default=32, type=int, help="dimension of layer h")
 parser.add_argument("--z_dim", default=32, type=int, help="dimension of layer z")
-parser.add_argument("--tau", default=0.1, type=float, help="softmax temperature")
-parser.add_argument("--lr", default=0.0008129, type=float, help="learning rate") #original 0.003
-parser.add_argument("--epochs", default=150, type=int, help="train epochs")
+parser.add_argument("--tau", default=0.3, type=float, help="softmax temperature")
+parser.add_argument("--lr", default=0.0008, type=float, help="learning rate") #original 0.003
+parser.add_argument("--epochs", default=101, type=int, help="train epochs")
 parser.add_argument("--disable-cuda", default=False, action="store_true", help="disable CUDA")
 parser.add_argument("--log-every-n-steps", default=1, type=int, help="log every n steps")
 parser.add_argument("--use_hpo_embeddings", default=1, type=int, help="use hpo sentence embeddings for nodes of hpo2hpo graph")
 parser.add_argument("--concat_hpo_embeddings", default=0, type=int, help="concatenate HPO embeddings after training")
 parser.add_argument("--hpo_embeddings_path", default=embeddings_path, help="path to HPO embeddings file")
-parser.add_argument("--hpo_graph_source", default="triples", choices=["triples", "direct", "closure"],
-                    help="HPO graph for the GAT: train2id triples, direct hpo2hpo edges, or true-path closure")
-parser.add_argument("--use_hpo_ic_edge_weights", default=False, action=argparse.BooleanOptionalAction,
-                    help="Use HPO information content as scalar edge attributes in the GAT")
-parser.add_argument("--hpo_ic_weight_mode", default="min", choices=["source", "target", "mean", "delta", "min", "max"],
-                    help="How to convert node IC values into edge weights")
-parser.add_argument("--hpo_ic_min_edge_weight", default=0.00, type=float,
-                    help="Minimum normalized IC edge weight; use 0.0 to allow hard-zero edges")
-parser.add_argument("--use_hpo_ic_loss_weights", default=False, action=argparse.BooleanOptionalAction,
-                    help="Weight positive gene-HPO contrastive pairs by HPO information content")
-parser.add_argument("--hpo_ic_loss_min_weight", default=0.00, type=float,
-                    help="Minimum normalized IC weight for positive contrastive pairs")
-parser.add_argument("--use_hpo_ic_pooling", default=False, action=argparse.BooleanOptionalAction,
-                    help="Use IC-weighted HPO pooling for disease embeddings")
-parser.add_argument("--hpo_ic_pooling_min_weight", default=0.0, type=float,
-                    help="Minimum normalized IC weight for HPO disease pooling")
 parser.add_argument("--wandb_label", default="run", help="Name the wandb run label")
-parser.add_argument("--encoder_mode", default="hpo", choices=["hpo", "hnet", "combined"], 
+parser.add_argument("--encoder_mode", default="hnet", choices=["hpo", "hnet", "combined"], 
                     help="Encoder mode for disease AUC calculation (hpo, hnet, or combined)")
 parser.add_argument("--full_dataset", default=validation_dataset_path, help="Path to full dataset for inference validation")
-parser.add_argument("--beta", default=0.9, type=float, help="Beta coefficient for contrastive loss")
+parser.add_argument("--beta", default=0, type=float, help="Beta coefficient for contrastive loss")
 parser.add_argument("--gamma", default=0, type=float, help="gamma coefficient for validation, only valid for combined mode")
 parser.add_argument("--hyperparameter_tuning", default=False, action="store_true", help="Perform hyperparameter tuning")
 parser.add_argument("--cv_folds", default=5, type=int, help="Number of cross-validation folds for hyperparameter tuning")
@@ -86,21 +70,17 @@ hn_edge_weight = torch.tensor(np.hstack((hnadj.data, hnadj.data)), dtype=torch.f
 hn_edge_weight = (hn_edge_weight - hn_edge_weight.min()) / (hn_edge_weight.max() - hn_edge_weight.min())
 hn_edge_index = torch.tensor(np.vstack((np.concatenate([src, dst]), np.concatenate([dst, src]))), dtype=torch.long)
 
-# Load HPO graph. The closure graph contains true-path ancestor connections.
-hpo_graph_file = "hpo2hpo_rec.npz" if args.hpo_graph_source == "closure" else "hpo2hpo.npz"
-hpo2hpo = load_sparse(args.data + "/" + hpo_graph_file)
-hpo_edge_index = torch.tensor(np.vstack((hpo2hpo.row, hpo2hpo.col)), dtype=torch.long)
-hpo_num_nodes = hpo2hpo.shape[1]
+# Load hpo adj matrix for GCN Model
+hpo2hpo = load_sparse(args.data+"/hpo2hpo_rec.npz")
+src = hpo2hpo.row
+dst = hpo2hpo.col
+hpo_edge_weight = torch.tensor(np.hstack((hpo2hpo.data, hpo2hpo.data)), dtype=torch.float)
+hpo_edge_index = torch.tensor(np.vstack((np.concatenate([src, dst]), np.concatenate([dst, src]))), dtype=torch.long)
+hpo2hpo = mx_to_torch_sparse_tesnsor(hpo2hpo).to_dense()
 
-# Load gene2HPO align with ancestors; this is also the annotation corpus for IC.
-g2hpo_sparse = load_sparse(args.data + "/g2hpo_all_ancestors.npz")
-uses_hpo_ic = (
-    args.use_hpo_ic_edge_weights
-    or args.use_hpo_ic_loss_weights
-    or args.use_hpo_ic_pooling
-)
-hpo_node_ic = compute_information_content(g2hpo_sparse) if uses_hpo_ic else None
-g2hpo = mx_to_torch_sparse_tesnsor(g2hpo_sparse).to_dense()
+# Load gene2HPO align or g2hpo_all
+g2hpo = load_sparse(args.data+"/g2hpo_all_ancestors.npz")
+g2hpo = mx_to_torch_sparse_tesnsor(g2hpo).to_dense()
 
 x = generate_sparse_one_hot(g2hpo.shape[0])
 
@@ -140,35 +120,13 @@ if args.concat_hpo_embeddings:
         print(f"Could not load concat embeddings: {e}")
         hpo_embeddings_concat = None
 
-# Create graph for the HPO GAT.
-if args.hpo_graph_source == "triples":
-    train_triples = load_triples(args.data)
-    edge_index, edge_type = get_kg_data(train_triples, num_rels=1)
-    g_data = Data(x=y, edge_index=edge_index, edge_type=edge_type, num_nodes=hpo_num_nodes)
-else:
-    g_data = Data(x=y, edge_index=hpo_edge_index, num_nodes=hpo_num_nodes)
+# # Create graph for GCN/GAT model
+# g_data = Data(x=y, edge_index=hpo_edge_index, edge_weight=hpo_edge_weight) # (HPO Graph)
 
-if hpo_node_ic is not None:
-    g_data.node_ic = hpo_node_ic
-
-if args.use_hpo_ic_edge_weights:
-    hpo_edge_weight = build_ic_edge_weight(
-        g_data.edge_index,
-        hpo_node_ic,
-        mode=args.hpo_ic_weight_mode,
-        min_weight=args.hpo_ic_min_edge_weight,
-    )
-    g_data.edge_weight = hpo_edge_weight
-    g_data.edge_attr = hpo_edge_weight.view(-1, 1)
-    print(
-        f"Using HPO IC edge attributes from {args.hpo_graph_source} graph "
-        f"with mode={args.hpo_ic_weight_mode}, floor={args.hpo_ic_min_edge_weight}."
-    )
-
-if args.use_hpo_ic_loss_weights:
-    print(f"Using HPO IC-weighted contrastive positives with floor={args.hpo_ic_loss_min_weight}.")
-if args.use_hpo_ic_pooling:
-    print(f"Using HPO IC-weighted disease pooling with floor={args.hpo_ic_pooling_min_weight}.")
+# Load HPO for RGCN Model
+train_triples = load_triples(args.data)
+edge_index, edge_type = get_kg_data(train_triples, num_rels=1)
+g_data = Data(x=y,edge_index=edge_index, edge_type=edge_type, num_nodes=hpo2hpo.shape[1])
 
 kg_data = Data(x=x, edge_index=hn_edge_index, edge_weight=hn_edge_weight) # Human net graph
 
@@ -246,9 +204,8 @@ if args.hyperparameter_tuning:
 
 # Initialize models
 # g_encoder = GCN(nfeat=g_data.x.shape[1], nhid=args.h_dim) #GCN for HPO
-hpo_edge_dim = g_data.edge_attr.size(-1) if getattr(g_data, "edge_attr", None) is not None else None
-g_encoder = GAT(nfeat=g_data.x.shape[1], nhid=args.h_dim, edge_dim=hpo_edge_dim) #GAT for HPO
-# g_encoder = RGCN(num_nodes=g_data.num_nodes, nhid=args.h_dim, num_rels=2)
+# g_encoder = GAT(nfeat=g_data.x.shape[1], nhid=args.h_dim) #GAT for HPO
+g_encoder = RGCN(num_nodes=g_data.num_nodes, nhid=args.h_dim, num_rels=2)
 kg_encoder = GCN(nfeat=kg_data.x.shape[1], nhid=args.h_dim) #GCN for gene network
 
 projection = Projection(args.h_dim, args.z_dim)
@@ -262,23 +219,7 @@ trainer = Trainer(model, tau=args.tau, optimizer=opt, log_every_n_steps=args.log
                  device=device, wandb_label=args.wandb_label)
 
 # Load data into trainer
-trainer.load_data(
-    g_data,
-    kg_data,
-    g2hpo,
-    dis2hpo,
-    dis2g,
-    args.data,
-    args.beta,
-    args.gamma,
-    concat=bool(args.concat_hpo_embeddings),
-    hpo_embeddings_concat=hpo_embeddings_concat,
-    hpo_node_ic=hpo_node_ic,
-    use_hpo_ic_pooling=args.use_hpo_ic_pooling,
-    use_hpo_ic_loss_weights=args.use_hpo_ic_loss_weights,
-    hpo_ic_loss_min_weight=args.hpo_ic_loss_min_weight,
-    hpo_ic_pooling_min_weight=args.hpo_ic_pooling_min_weight,
-)
+trainer.load_data(g_data, kg_data, g2hpo, dis2hpo, dis2g, args.data, args.beta, args.gamma,concat=bool(args.concat_hpo_embeddings),hpo_embeddings_concat=hpo_embeddings_concat)
 
 print("Finish initializing...")
 print(f"Using encoder mode: {args.encoder_mode}")

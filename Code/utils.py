@@ -41,63 +41,6 @@ def generate_sparse_one_hot(num_ents, dtype=torch.float32):
         size=(diag_size, diag_size))
 
 
-def compute_information_content(annotation_mx, smoothing=1.0, normalize=True):
-    """Estimate HPO information content from true-path-propagated annotations."""
-    if sp.issparse(annotation_mx):
-        counts = np.asarray(annotation_mx.sum(axis=0)).ravel().astype(np.float32)
-        total = annotation_mx.shape[0]
-    elif torch.is_tensor(annotation_mx):
-        counts = annotation_mx.to_dense().sum(dim=0).detach().cpu().numpy().astype(np.float32)
-        total = annotation_mx.shape[0]
-    else:
-        counts = np.asarray(annotation_mx).sum(axis=0).astype(np.float32)
-        total = annotation_mx.shape[0]
-
-    freq = (counts + smoothing) / (total + smoothing)
-    ic = -np.log(np.clip(freq, 1e-12, 1.0))
-
-    if normalize:
-        ic_min = ic.min()
-        ic_max = ic.max()
-        ic = (ic - ic_min) / (ic_max - ic_min + 1e-12)
-
-    return torch.tensor(ic, dtype=torch.float)
-
-
-def build_ic_edge_weight(edge_index, node_ic, mode="min", min_weight=0.05):
-    """Map per-node IC values to scalar HPO edge weights."""
-    if not torch.is_tensor(node_ic):
-        node_ic = torch.tensor(node_ic, dtype=torch.float)
-
-    src = edge_index[0]
-    dst = edge_index[1]
-    src_ic = node_ic[src]
-    dst_ic = node_ic[dst]
-
-    if mode == "source":
-        edge_weight = src_ic
-    elif mode == "target":
-        edge_weight = dst_ic
-    elif mode == "mean":
-        edge_weight = (src_ic + dst_ic) / 2.0
-    elif mode == "delta":
-        edge_weight = torch.abs(src_ic - dst_ic)
-    elif mode == "min":
-        edge_weight = torch.minimum(src_ic, dst_ic)
-    elif mode == "max":
-        edge_weight = torch.maximum(src_ic, dst_ic)
-    else:
-        raise ValueError(f"Unknown IC edge-weight mode: {mode}")
-
-    max_weight = edge_weight.max()
-    if max_weight > 0:
-        edge_weight = edge_weight / max_weight
-
-    if min_weight and min_weight > 0:
-        edge_weight = min_weight + (1.0 - min_weight) * edge_weight
-    return edge_weight.float()
-
-
 ########################################################################
 # Knowledge Graph Utils
 ########################################################################
