@@ -14,7 +14,11 @@ from evaluation import get_disease_auc, validate_with_full_dataset
 
 torch.manual_seed(0)
 
-def pooling(x, y2x):
+def pooling(x, y2x, weights=None):
+    if weights is not None:
+        weights = weights.to(device=y2x.device, dtype=y2x.dtype).view(1, -1)
+        y2x = y2x * weights
+
     x = torch.mm(y2x, x)
     row_sum = torch.sum(y2x, dim=1).clamp(min=1e-8).reshape(-1, 1)
     x = torch.div(x, row_sum)
@@ -34,7 +38,10 @@ class Trainer(object):
         logging.basicConfig(filename=osp.join(self.run_dir, 'training.log'), level=logging.DEBUG)
         logging.info(f"Training device: {self.device}.")
         
-    def load_data(self, g_data, kg_data, labels, dis2hpo, dis2g, dis_path, beta, gamma, concat=False, hpo_embeddings_concat=None):
+    def load_data(self, g_data, kg_data, labels, dis2hpo, dis2g, dis_path, beta, gamma,
+                  concat=False, hpo_embeddings_concat=None, hpo_node_ic=None,
+                  use_hpo_ic_pooling=False, use_hpo_ic_loss_weights=False,
+                  hpo_ic_loss_min_weight=0.05, hpo_ic_pooling_min_weight=0.0):
         self.g_data = g_data.to(self.device)
         self.kg_data = kg_data.to(self.device)
         self.labels = labels.to(self.device)
@@ -44,35 +51,77 @@ class Trainer(object):
         self.beta = beta
         self.gamma = gamma
         self.concat = concat
+
+        if hpo_node_ic is None:
+            self.hpo_node_ic = None
+        elif torch.is_tensor(hpo_node_ic):
+            self.hpo_node_ic = hpo_node_ic.detach().cpu().float()
+        else:
+            self.hpo_node_ic = torch.tensor(hpo_node_ic, dtype=torch.float)
+        self.use_hpo_ic_pooling = use_hpo_ic_pooling and self.hpo_node_ic is not None
+        self.use_hpo_ic_loss_weights = use_hpo_ic_loss_weights and self.hpo_node_ic is not None
+        self.hpo_ic_loss_min_weight = hpo_ic_loss_min_weight
+        self.hpo_ic_pooling_min_weight = hpo_ic_pooling_min_weight
+
          # keep a CPU copy to avoid CUDA ↔ CPU transfers when logging/validating
         self.hpo_embeddings_concat = (
             hpo_embeddings_concat if hpo_embeddings_concat is None
             else hpo_embeddings_concat.cpu()
         )
+
+    def _hpo_weights(self, floor=0.0):
+        if self.hpo_node_ic is None:
+            return None
+        weights = self.hpo_node_ic.clone()
+        if floor and floor > 0:
+            weights = floor + (1.0 - floor) * weights
+        return weights
+
+    def _hpo_pooling_weights(self):
+        if not self.use_hpo_ic_pooling:
+            return None
+        return self._hpo_weights(self.hpo_ic_pooling_min_weight)
         
     def nce_loss(self, gz, kgz, labels):
         eps = 1e-8 # To eliminate risk of div/0 or log(0) in loss calculation
         gz = F.normalize(gz, dim=1)
         kgz = F.normalize(kgz, dim=1)
-        similarity_matrix = kgz @ gz.T # I changed here
-        similarity_matrix = torch.exp(similarity_matrix / self.tau)
-        
-        # HPO direction (dim=0)
-        hpo_sim_matrix_sum = torch.sum(similarity_matrix, 0, keepdim=True)
-        hpo_pos_sum = torch.sum(similarity_matrix * labels, 0)
-        
-        # Gene direction (dim=1)
-        gene_sim_matrix_sum = torch.sum(similarity_matrix, 1, keepdim=True)
-        gene_pos_sum = torch.sum(similarity_matrix * labels, 1)  # Fixed: using similarity_matrix instead of hpo_sim_matrix_sum
+        similarity_matrix = torch.exp((kgz @ gz.T) / self.tau)
+        labels = labels.to(dtype=similarity_matrix.dtype)
+        positive_mask = labels > 0
+
+        positive_weights = labels
+        if self.use_hpo_ic_loss_weights:
+            hpo_weights = self._hpo_weights(self.hpo_ic_loss_min_weight).to(
+                device=similarity_matrix.device,
+                dtype=similarity_matrix.dtype,
+            )
+            positive_weights = labels * hpo_weights.view(1, -1)
+
+        positive_scores = similarity_matrix * positive_weights
+
+        hpo_has_pos = positive_mask.any(dim=0)
+        gene_has_pos = positive_mask.any(dim=1)
+
+        hpo_den = similarity_matrix.sum(dim=0)
+        hpo_pos = positive_scores.sum(dim=0)
+        gene_den = similarity_matrix.sum(dim=1)
+        gene_pos = positive_scores.sum(dim=1)
+
+        if torch.any(hpo_has_pos):
+            hpo_ratio = (hpo_pos[hpo_has_pos] + eps) / (hpo_den[hpo_has_pos] + eps)
+            hpo_loss = -torch.log(hpo_ratio.clamp_min(eps)).mean()
+        else:
+            hpo_loss = similarity_matrix.new_tensor(0.0)
+
+        if torch.any(gene_has_pos):
+            gene_ratio = (gene_pos[gene_has_pos] + eps) / (gene_den[gene_has_pos] + eps)
+            gene_loss = -torch.log(gene_ratio.clamp_min(eps)).mean()
+        else:
+            gene_loss = similarity_matrix.new_tensor(0.0)
+
         beta = self.beta  # this is a hyperparameter
-        
-        # Log calculations with proper epsilon handling
-        hpo_loss = -torch.log(hpo_pos_sum + eps / hpo_sim_matrix_sum + eps).mean()
-        gene_loss = -torch.log(gene_pos_sum + eps / gene_sim_matrix_sum + eps).mean()
-        
-        # Correct way to combine the losses
         loss = beta * hpo_loss + (1 - beta) * gene_loss
-        
         return loss
 
     def train(self, epochs, encoder_mode='hpo'):
@@ -102,7 +151,7 @@ class Trainer(object):
                     # Compute AUC based on encoder mode
                     if encoder_mode == 'hpo':
                         # Use HPO network encoder
-                        d_h = pooling(g_h_cpu, self.dis2hpo.to_dense())
+                        d_h = pooling(g_h_cpu, self.dis2hpo.to_dense(), self._hpo_pooling_weights())
                         auc, ap = get_disease_auc(d_h, self.dis_path)
                     elif encoder_mode == 'hnet':
                         # Use Human network encoder
@@ -110,7 +159,7 @@ class Trainer(object):
                         auc, ap = get_disease_auc(d_h, self.dis_path)
                     elif encoder_mode == 'combined':
                         # Combine both encoders (average embeddings)
-                        d_h_hpo = pooling(g_h_cpu, self.dis2hpo.to_dense())
+                        d_h_hpo = pooling(g_h_cpu, self.dis2hpo.to_dense(), self._hpo_pooling_weights())
                         d_h_hnet = pooling(kg_h_cpu, self.dis2g.to_dense())
                         
                         # Ensure dimensions match before combining
@@ -179,13 +228,13 @@ class Trainer(object):
 
             # Compute disease embeddings
             if encoder_mode == 'hpo':
-                d_h = pooling(g_h_for_pool, self.dis2hpo.to_dense())
+                d_h = pooling(g_h_for_pool, self.dis2hpo.to_dense(), self._hpo_pooling_weights())
                 auroc, auprc, roc, precision, recall = validate_with_full_dataset(dataset_path, encoder_mode, gamma, d_h)
             elif encoder_mode == 'hnet':
                 d_h = pooling(kg_h_cpu, self.dis2g.to_dense())
                 auroc, auprc, roc, precision, recall = validate_with_full_dataset(dataset_path, encoder_mode, gamma, d_h)
             elif encoder_mode == 'combined':
-                d_h_hpo = pooling(g_h_for_pool, self.dis2hpo.to_dense())
+                d_h_hpo = pooling(g_h_for_pool, self.dis2hpo.to_dense(), self._hpo_pooling_weights())
                 d_h_hnet = pooling(kg_h_cpu, self.dis2g.to_dense())
                 auroc, auprc, roc, precision, recall = validate_with_full_dataset(dataset_path, encoder_mode, gamma, None, d_h_hpo, d_h_hnet)
             else:
@@ -336,13 +385,13 @@ class Trainer(object):
             # --- Step 1: Represent the Disease ---
             if rep_mode == "hpo":
                 # Disease as average of its HPO terms
-                disease_rep = pooling(g_h, self.dis2hpo.to_dense().to(self.device))
+                disease_rep = pooling(g_h, self.dis2hpo.to_dense().to(self.device), self._hpo_pooling_weights())
             elif rep_mode == "gene":
                 # Disease as average of its Genes
                 disease_rep = pooling(kg_h, self.dis2g.to_dense().to(self.device))
             elif rep_mode == "combined":
                 # Disease as average of both HPO and Gene embeddings
-                d_h_hpo = pooling(g_h, self.dis2hpo.to_dense().to(self.device))
+                d_h_hpo = pooling(g_h, self.dis2hpo.to_dense().to(self.device), self._hpo_pooling_weights())
                 d_h_gene = pooling(kg_h, self.dis2g.to_dense().to(self.device))
                 disease_rep = (d_h_hpo + d_h_gene) / 2.0
 

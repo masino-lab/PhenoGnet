@@ -69,20 +69,28 @@ class RGCN(nn.Module):
 #Graph attention network
 class GAT(nn.Module):
 
-    def __init__(self, nfeat, nhid, heads=1):
+    def __init__(self, nfeat, nhid, heads=1, edge_dim=None):
         super(GAT, self).__init__()
-        self.conv1 = GATConv(nfeat, nhid, heads=heads, concat=True, bias=True)
-        self.conv2 = GATConv(nhid * heads, nhid, heads=1, concat=True, bias=True)
+        self.edge_dim = edge_dim
+        self.conv1 = GATConv(nfeat, nhid, heads=heads, concat=True, bias=True, edge_dim=edge_dim)
+        self.conv2 = GATConv(nhid * heads, nhid, heads=1, concat=True, bias=True, edge_dim=edge_dim)
+
+    def _get_edge_attr(self, data):
+        if self.edge_dim is None:
+            return None
+
+        edge_attr = getattr(data, "edge_attr", None)
+        if edge_attr is None:
+            edge_attr = getattr(data, "edge_weight", None)
+        if edge_attr is not None and edge_attr.dim() == 1:
+            edge_attr = edge_attr.view(-1, 1)
+        return edge_attr
 
     def forward(self, data):
-        try:
-            x = self.conv1(data.x, data.edge_index, data.edge_weight)
-            x = F.leaky_relu(x)
-            x = self.conv2(x, data.edge_index, data.edge_weight)
-        except:
-            x = self.conv1(data.x, data.edge_index)
-            x = F.leaky_relu(x)
-            x = self.conv2(x, data.edge_index)
+        edge_attr = self._get_edge_attr(data)
+        x = self.conv1(data.x, data.edge_index, edge_attr=edge_attr)
+        x = F.leaky_relu(x)
+        x = self.conv2(x, data.edge_index, edge_attr=edge_attr)
         return x
 
 #The main model that combines gene and HPO graph embeddings

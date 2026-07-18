@@ -77,7 +77,8 @@ def run_hyperparameter_tuning(args, g_data, kg_data, g2hpo, dis2hpo, dis2g, devi
                     f.write(f"{val_pairs[i][0]}\t{val_pairs[i][1]}\t{val_labels[i]}\n")
             
             # Initialize models with current hyperparameters
-            g_encoder = GAT(nfeat=g_data.x.shape[1], nhid=args.h_dim)
+            hpo_edge_dim = g_data.edge_attr.size(-1) if getattr(g_data, "edge_attr", None) is not None else None
+            g_encoder = GAT(nfeat=g_data.x.shape[1], nhid=args.h_dim, edge_dim=hpo_edge_dim)
             kg_encoder = GCN(nfeat=kg_data.x.shape[1], nhid=args.h_dim)
             projection = Projection(args.h_dim, args.z_dim)
             model = PhenoGnet(g_encoder, kg_encoder, projection)
@@ -91,7 +92,21 @@ def run_hyperparameter_tuning(args, g_data, kg_data, g2hpo, dis2hpo, dis2g, devi
                              device=device, wandb_label=wandb_label)
             
             # Load data into trainer
-            trainer.load_data(g_data, kg_data, g2hpo, dis2hpo, dis2g, args.data, beta)
+            trainer.load_data(
+                g_data,
+                kg_data,
+                g2hpo,
+                dis2hpo,
+                dis2g,
+                args.data,
+                beta,
+                args.gamma,
+                hpo_node_ic=getattr(g_data, "node_ic", None),
+                use_hpo_ic_pooling=args.use_hpo_ic_pooling,
+                use_hpo_ic_loss_weights=args.use_hpo_ic_loss_weights,
+                hpo_ic_loss_min_weight=args.hpo_ic_loss_min_weight,
+                hpo_ic_pooling_min_weight=args.hpo_ic_pooling_min_weight,
+            )
             
             # Train the model
             trainer.train(epochs, encoder_mode=args.encoder_mode)
@@ -159,9 +174,24 @@ def run_hyperparameter_tuning(args, g_data, kg_data, g2hpo, dis2hpo, dis2g, devi
     trials_df = study.trials_dataframe()
     trials_df.to_csv(os.path.join(args.output_dir, "all_trials.csv"))
     
-    # Save study as pickle file
+    study_payload = {
+        "direction": study.direction.name,
+        "best_trial_number": study.best_trial.number,
+        "best_value": study.best_value,
+        "best_params": study.best_params,
+        "trials": [
+            {
+                "number": t.number,
+                "value": t.value,
+                "params": t.params,
+                "state": t.state.name,
+                "datetime_start": str(t.datetime_start),
+                "datetime_complete": str(t.datetime_complete),
+            }
+            for t in study.trials
+        ],
+    }
     with open(os.path.join(args.output_dir, "study.json"), "w") as f:
-        json_str = optuna.study.StudyManager._dump_study(study, include_best_trial=True)
-        json.dump(json.loads(json_str), f, indent=4)
+        json.dump(study_payload, f, indent=4)
     
     return study.best_params
